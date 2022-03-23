@@ -1,0 +1,116 @@
+cd into client and enter in terminal: npm install
+Enter in terminal: npm start
+
+In new terminal, cd into server and enter in terminal: npm install
+Enter in terminal: node index.js
+
+In new terminal, enter in terminal: npx cypress
+
+In client directory, open cypress.json and enter:
+
+    {
+        "baseUrl": "http://localhost:3000",
+        "ignoreTestFiles":  [
+            "**/examples/*"
+        ]
+    }
+
+Create project-2 folder in integration and create rewards.spec.js test file. Enter code:
+
+    /// <reference types="cypress" />
+
+    describe("Rewards dashboard", () => {
+        beforeEach(() => {
+            cy.visit("/rewards")
+        })
+
+        it("should display a lit of rewards", () => {
+            cy.get("ul")
+            .should("contain", "500 points for drinking 8 cups of water for 7 straight days")
+            .and("contains", "850 points for fasting for 5 days straight")
+        })
+
+        it("should display a lit of rewards with mock", () => {
+            cy.intercept("GET", "http://localhost:4000/rewards", { //Note that it's 4000 bc server from server folder is listening on port 4000
+                fixture: "rewards.json"
+            })
+
+            cy.get("ul")
+            .should("contain", "500 points for drinking 8 cups of water for 7 straight days")
+            .and("contains", "850 points for fasting for 5 days straight")
+        })
+    })
+
+Server is dynamic and will render different content. Then based on the first test case we wrote, then those test cases will fail bc it won't be
+able to find "500 points for drinking 8 cups of water for 7 straight days". In cases where we don't want to get data from server itself, like if we
+dont want to do a POST request and add data to our database, then can do MOCK http request. If test encounters a specific HTTP request, Can tell 
+cypress to intercept it and return data that conform to data the server will usually send back. 
+
+In the rewards section of the site, can see a list of rewards. Going to Inspect tool and on network, can see a rewards http request. Therefore,
+we will intercept the request. Do this by specifying the method and URL and send back some data, and the data will be the 3rd parameter, fixture: 
+"rewards.json". We have fixture directory and it has a bunch of json files that mock json data. Therefore, can create rewards.json inside that 
+directory and enter:
+
+    [{
+        "id": 1,
+        "reward": "500 points for drinking 8 cups of water for 7 straight days",
+        "month": "January"
+    },
+    {
+        "id": 2,
+        "reward": "850 points for fasting for 5 days straight",
+        "month": "January"
+    },
+    {
+        "id": 3,
+        "reward": "250 points for exercising for 3 straight days",
+        "month": "January"
+    }]
+
+Now we can do the assertion and ensure that we will be getting back this data all the time and it'll be fast bc we're not making an actual http 
+request. 
+
+------------------------------------------------------
+PART 2
+For this part, will be testing the accomplishment component of the site. In this component, will actually be sending HTTP POST request thanks to 
+the form. Will see msg: "Accomplishment sent" in the Dev Inspect Tool under Network tab, Name: localhost and under preview tab. In this component,
+there is a filtration in place and will detect if a keyword/ badword is written. If so, a message will be displayed saying "Your content is not
+appropriate" in the frontend and in the json response, also under preview. In this case, giraffe keyword was used. 
+
+Create accomplishmnt.spec.js test file and will mock the response if giraffe keyword was entered. Enter code: 
+
+        /// <reference types="cypress" />
+
+        describe("Accomplishment Dashboard", () => {
+            beforeEach(() => {
+                cy.visit("/accomplishments")
+            })
+
+            it("should display inappropriate content error when text or accomplishment includes giraffe", () => {
+                cy.get("[placeholder='Title']").type("This is my accomplishment")
+                cy.get("[placeholder='My accomplishment...']").type("I pet a giraffe")
+                cy.get("[type='checkbox']").click()
+                cy.get("button").click()
+                cy.contains("Your content is not appropriate").should("be.visible")
+            })
+
+            //Instead of doing what's above, can do this using Mock
+            it("should display inappropriate content error when text or accomplishment includes giraffe using Mock", () => {
+
+                cy.intercept('POST', "http://localhost:4000", (req) => {
+                    req.reply((res) => {
+                        res.send({
+                            msg: "Your content is not appropriate"
+                        })
+                    })
+                })
+                cy.get("[placeholder='Title']").type("This is my accomplishment")
+                cy.get("[placeholder='My accomplishment...']").type("I pet a giraffe")
+                cy.get("[type='checkbox']").click()
+                cy.get("button").click()
+                cy.contains("Your content is not appropriate").should("be.visible")
+            })
+        })
+
+The res.send msg: "Your content is not appropriate" will be what's sent back to user to see in front-end. Can prove this by changing it to ex: 
+"Your shirt is not appropriate". Can see this in front-end. This will mimic what server will respond back with. 
